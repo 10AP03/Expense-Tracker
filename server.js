@@ -13,10 +13,12 @@ const app = express();
 
 // Add CORS before everything
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: [
+    "http://localhost:5173",
+    "https://expense-tracker-frontend-thf0.onrender.com"
+  ],
   credentials: true
 }))
-
 app.use(express.json());
 
 app.get("/",(req,res)=>{
