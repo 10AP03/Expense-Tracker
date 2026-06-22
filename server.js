@@ -1,0 +1,34 @@
+import connectDB from "./config/db.js"; 
+import dotenv from "dotenv";        
+import express from "express"; 
+import cors from "cors"
+import authRoutes from "./routes/authRoutes.js";
+import expenseRoutes from "./routes/expenseRoutes.js";
+import userRoutes from "./routes/userRoutes.js";     
+
+dotenv.config(); 
+connectDB();                        
+
+const app = express();
+
+// Add CORS before everything
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}))
+
+app.use(express.json());
+
+app.get("/",(req,res)=>{
+  res.send("Expense Tracker API is Running...");
+});
+
+app.use(express.json());
+
+app.use("/api/auth", authRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/users", userRoutes);
+
+app.listen(5000, () =>{                                  
+  console.log("Server is Running on http://localhost:5000");
+});
