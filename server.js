@@ -29,6 +29,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/users", userRoutes);
 
-app.listen(5000, () =>{                                  
-  console.log("Server is Running on http://localhost:5000");
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server is Running on Port ${PORT}`);
 });
