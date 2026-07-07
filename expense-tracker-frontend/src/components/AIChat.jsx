@@ -12,22 +12,31 @@ export default function AIChat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [expenses, setExpenses] = useState([])
+  const [fetching, setFetching] = useState(false)
   const messagesEndRef = useRef(null)
 
+  // Fetch expenses every time chat is opened
   useEffect(() => {
-    fetchExpenses()
-  }, [])
+    if (open) {
+      fetchExpenses()
+      scrollToBottom()
+    }
+  }, [open])
 
   useEffect(() => {
     if (open) scrollToBottom()
-  }, [messages, open])
+  }, [messages])
 
   const fetchExpenses = async () => {
+    setFetching(true)
     try {
       const res = await API.get('/expenses?limit=100')
       setExpenses(res.data)
+      console.log('Fetched expenses:', res.data)
     } catch (err) {
-      console.error(err)
+      console.error('Error fetching expenses:', err)
+    } finally {
+      setFetching(false)
     }
   }
 
@@ -49,20 +58,34 @@ export default function AIChat() {
         .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
         .join('\n')
 
+      // Calculate stats from real data
+      const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0)
+      const categories = [...new Set(expenses.map(e => e.category))]
+      const categoryBreakdown = categories.map(cat => {
+        const catExpenses = expenses.filter(e => e.category === cat)
+        const total = catExpenses.reduce((sum, e) => sum + e.amount, 0)
+        return { category: cat, total, count: catExpenses.length }
+      })
+
       const prompt = `You are a helpful personal finance AI assistant integrated into an expense tracker app.
-You have access to the user's expense data. Be concise, friendly, and use emojis.
-Always give specific answers based on their actual data when possible.
-If asked to add an expense, tell them to use the Add Expense page.
+You have access to the user's REAL expense data below. Always answer based on this exact data.
+Be concise, friendly, and use emojis.
 
-User's Expense Data: ${JSON.stringify(expenses)}
-Total spent: ₹${expenses.reduce((sum, e) => sum + e.amount, 0)}
-Number of transactions: ${expenses.length}
-Categories: ${[...new Set(expenses.map(e => e.category))].join(', ')}
+=== USER'S REAL EXPENSE DATA ===
+Total number of expenses: ${expenses.length}
+Total amount spent: ₹${totalSpent}
+All expenses: ${JSON.stringify(expenses)}
+Category breakdown: ${JSON.stringify(categoryBreakdown)}
+=================================
 
-Conversation:
+If the user asks about their expenses, always use the above data to answer.
+If there are no expenses (length is 0), tell them they have no expenses recorded yet.
+Never make up or assume any expense data.
+
+Conversation history:
 ${conversationHistory}
 
-Please respond to the latest user message.`
+Please respond to the latest user message based on their real data above.`
 
       const response = await fetch(
         'https://api.groq.com/openai/v1/chat/completions',
@@ -167,16 +190,39 @@ Please respond to the latest user message.`
                 <p className="text-white font-bold text-sm">SpendAI Assistant</p>
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <p className="text-xs" style={{ color: 'rgba(167,139,250,0.8)' }}>Online • Powered by Groq AI</p>
+                  <p className="text-xs" style={{ color: 'rgba(167,139,250,0.8)' }}>
+                    {fetching ? 'Loading your data...' : 'Online • Powered by Groq AI'}
+                  </p>
                 </div>
               </div>
             </div>
-            <button onClick={() => setOpen(false)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-              style={{ background: 'rgba(255,255,255,0.1)' }}>
-              ✕
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Refresh button */}
+              <button onClick={fetchExpenses}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                style={{ background: 'rgba(255,255,255,0.1)' }}
+                title="Refresh expense data">
+                🔄
+              </button>
+              <button onClick={() => setOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                style={{ background: 'rgba(255,255,255,0.1)' }}>
+                ✕
+              </button>
+            </div>
           </div>
+
+          {/* Data loaded indicator */}
+          {expenses.length > 0 && (
+            <div className="px-4 py-2 text-xs flex items-center gap-2"
+              style={{
+                background: 'rgba(74,222,128,0.05)',
+                borderBottom: '1px solid rgba(74,222,128,0.1)',
+                color: 'rgba(74,222,128,0.7)'
+              }}>
+              ✅ Loaded {expenses.length} expenses • Total: ₹{expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4"
